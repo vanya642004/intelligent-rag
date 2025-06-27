@@ -33,7 +33,8 @@ if uploaded_files:
 
     st.info("📡 Creating vector database...")
     embedding_function = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    vector_db = Chroma.from_documents(documents, embedding_function)
+    vector_db = Chroma.from_documents(documents, embedding_function, persist_directory="chroma_db")
+
 
     llm = HuggingFaceEndpoint(
         repo_id="google/flan-t5-base",
