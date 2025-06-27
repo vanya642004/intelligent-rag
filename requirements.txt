@@ -5,3 +5,4 @@ chromadb==0.4.22
 pypdf
 huggingface_hub
 sentence-transformers
+numpy==1.26.4
