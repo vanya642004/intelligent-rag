@@ -1,45 +1,47 @@
 import streamlit as st
 from langchain.document_loaders import PyPDFLoader
-from langchain.text_splitter import CharacterTextSplitter
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
+from langchain.text_splitter import CharacterTextSplitter
 from langchain.chains import RetrievalQA
-from transformers import pipeline
-from langchain.llms import HuggingFacePipeline
+from langchain.llms import HuggingFaceHub
 import tempfile
+import os
 
-st.set_page_config(page_title="📚 Academic RAG Assistant", layout="centered")
-st.title("📄 Ask Your PDFs (RAG powered)")
+st.title("📄 Real-Time PDF RAG")
 
-uploaded_files = st.file_uploader("Upload one or more PDFs", type="pdf", accept_multiple_files=True)
+uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
 
-if not uploaded_files:
-    st.info("Please upload PDF documents to get started.")
-    st.stop()
-
-all_chunks = []
-for file in uploaded_files:
+if uploaded_file:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-        tmp.write(file.read())
-        loader = PyPDFLoader(tmp.name)
-        docs = loader.load()
-        text_splitter = CharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-        chunks = text_splitter.split_documents(docs)
-        all_chunks.extend(chunks)
+        tmp.write(uploaded_file.read())
+        pdf_path = tmp.name
 
-# Embeddings + Vector Store
-embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-vectorstore = FAISS.from_documents(all_chunks, embeddings)
+    st.success("✅ PDF uploaded!")
 
-# LLM Pipeline
-pipe = pipeline("text2text-generation", model="google/flan-t5-base", max_length=256)
-llm = HuggingFacePipeline(pipeline=pipe)
-qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=vectorstore.as_retriever())
+    loader = PyPDFLoader(pdf_path)
+    pages = loader.load()
+    
+    text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+    documents = text_splitter.split_documents(pages)
 
-# Query UI
-query = st.text_input("Ask a question based on the uploaded PDFs:")
-if query:
-    with st.spinner("Thinking..."):
-        result = qa_chain.run(query)
-    st.success("Answer:")
-    st.write(result)
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    vector_db = FAISS.from_documents(documents, embeddings)
+
+    retriever = vector_db.as_retriever()
+
+    llm = HuggingFaceHub(
+        repo_id="google/flan-t5-base",
+        model_kwargs={"temperature": 0.3, "max_length": 512}
+    )
+
+    qa = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
+
+    query = st.text_input("Ask a question from your PDF:")
+    if query:
+        with st.spinner("Searching..."):
+            response = qa.run(query)
+        st.success("🧠 Answer:")
+        st.write(response)
+
+    os.remove(pdf_path)
