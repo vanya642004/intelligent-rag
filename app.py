@@ -1,41 +1,45 @@
 import streamlit as st
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import CharacterTextSplitter
-from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain.vectorstores import FAISS
+from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.chains import RetrievalQA
 from langchain_community.llms import HuggingFaceHub
 import tempfile
+import os
 
-st.set_page_config(page_title="PDF Q&A")
-st.title("📄 Ask a question from your PDF")
+st.set_page_config(page_title="RAG PDF QA")
+st.title("📚 Ask Your PDF ")
 
-query = st.text_input("Enter your question")
-uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
+uploaded_file = st.file_uploader("Upload a PDF file", type="pdf")
 
-if uploaded_file and query:
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-        tmp.write(uploaded_file.read())
-        tmp_path = tmp.name
+if uploaded_file:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+        tmp_file.write(uploaded_file.read())
+        tmp_path = tmp_file.name
 
+    # Load and chunk PDF
     loader = PyPDFLoader(tmp_path)
-    pages = loader.load()
+    documents = loader.load()
+    text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+    docs = text_splitter.split_documents(documents)
 
-    splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-    docs = splitter.split_documents(pages)
+    # Embeddings from Hugging Face
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    vectorstore = FAISS.from_documents(docs, embeddings)
+    retriever = vectorstore.as_retriever()
 
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    db = FAISS.from_documents(docs, embeddings)
-
-    retriever = db.as_retriever()
+    # Free HF model for Q&A
     llm = HuggingFaceHub(
-        repo_id="google/flan-t5-base",
-        model_kwargs={"temperature": 0.1, "max_length": 512}
+        repo_id="google/flan-t5-base", model_kwargs={"temperature": 0.2, "max_length": 256}
     )
 
-    qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever)
+    # RAG Chain
+    qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
 
-    # 🔥 KEY FIX HERE
-    response = qa.run(query)
+    query = st.text_input("❓ Ask a question based on the PDF:")
+    if query:
+        answer = qa_chain.run(query)
+        st.success(answer)
 
-    st.success(response)
+    os.remove(tmp_path)
