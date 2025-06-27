@@ -2,15 +2,15 @@ import os
 import streamlit as st
 import glob
 from langchain_community.document_loaders import PyPDFLoader
-from langchain.vectorstores import Chroma
+from langchain.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.chains import RetrievalQA
 from langchain.llms import HuggingFaceHub
 
-# 1. Set Hugging Face API token
+# Set Hugging Face API token
 os.environ["HUGGINGFACEHUB_API_TOKEN"] = st.secrets["HUGGINGFACEHUB_API_TOKEN"]
 
-# Streamlit page config
+# Streamlit UI
 st.set_page_config(page_title="AI Academic Assistant", layout="wide")
 st.title("📖 Intelligent Academic Search with RAG")
 
@@ -24,17 +24,14 @@ if uploaded_files:
         with open(os.path.join(pdf_folder, file.name), "wb") as f:
             f.write(file.getbuffer())
 
-    # Load documents
     documents = []
     for path in glob.glob(os.path.join(pdf_folder, "*.pdf")):
         loader = PyPDFLoader(path)
         documents.extend(loader.load())
 
-    st.info("📡 Creating vector database in-memory...")
+    st.info("📡 Creating FAISS vector DB in memory...")
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-
-    # ⛔ No Settings(), no persistence: run in memory for compatibility
-    vector_db = Chroma.from_documents(documents, embeddings)
+    vector_db = FAISS.from_documents(documents, embeddings)
 
     llm = HuggingFaceHub(
         repo_id="google/flan-t5-base",
