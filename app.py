@@ -1,47 +1,37 @@
 import streamlit as st
-from langchain.document_loaders import PyPDFLoader
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.vectorstores import FAISS
+from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import CharacterTextSplitter
+from langchain_community.vectorstores import FAISS
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.chains import RetrievalQA
-from langchain.llms import HuggingFaceHub
+from langchain_community.llms import HuggingFaceHub
 import tempfile
 import os
 
-st.title("📄 Real-Time PDF RAG")
+st.title("📄 Ask a question from your PDF:")
+
+query = st.text_input("Enter your question")
 
 uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
 
-if uploaded_file:
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-        tmp.write(uploaded_file.read())
-        pdf_path = tmp.name
-
-    st.success("✅ PDF uploaded!")
+if uploaded_file and query:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+        tmp_file.write(uploaded_file.read())
+        pdf_path = tmp_file.name
 
     loader = PyPDFLoader(pdf_path)
     pages = loader.load()
+
+    splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+    docs = splitter.split_documents(pages)
+
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    db = FAISS.from_documents(docs, embeddings)
+
+    retriever = db.as_retriever()
+    llm = HuggingFaceHub(repo_id="google/flan-t5-base", model_kwargs={"temperature": 0.2, "max_length": 512})
     
-    text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-    documents = text_splitter.split_documents(pages)
+    qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever)
 
-    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    vector_db = FAISS.from_documents(documents, embeddings)
-
-    retriever = vector_db.as_retriever()
-
-    llm = HuggingFaceHub(
-        repo_id="google/flan-t5-base",
-        model_kwargs={"temperature": 0.3, "max_length": 512}
-    )
-
-    qa = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
-
-    query = st.text_input("Ask a question from your PDF:")
-    if query:
-        with st.spinner("Searching..."):
-            response = qa.run(query)
-        st.success("🧠 Answer:")
-        st.write(response)
-
-    os.remove(pdf_path)
+    response = qa.invoke({"query": query})
+    st.success(response["result"])
