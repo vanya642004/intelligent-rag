@@ -5,4 +5,5 @@ huggingface_hub
 chromadb
 pypdf
 sentence-transformers
+protobuf==4.23.3
 langchain-community
