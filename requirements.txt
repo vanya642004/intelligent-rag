@@ -3,7 +3,7 @@ langchain
 langchain-community
 langchain-huggingface
 chromadb==0.4.22
-numpy==1.23.5
-transformers
-huggingface-hub
+huggingface_hub
+numpy>=1.24
 pypdf
+sentence-transformers
