@@ -1,11 +1,9 @@
 streamlit
 langchain
-langchain-huggingface
-huggingface_hub
-chromadb==0.4.24
-pypdf
-sentence-transformers
-protobuf==4.23.3
 langchain-community
+langchain-huggingface
+chromadb==0.4.22
 numpy==1.23.5
-
+transformers
+huggingface-hub
+pypdf
