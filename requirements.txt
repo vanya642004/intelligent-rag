@@ -1,8 +1,7 @@
 streamlit
 langchain
 langchain-community
-langchain-huggingface
-sentence-transformers
-faiss-cpu
-huggingface-hub
+chromadb==0.4.22
 pypdf
+huggingface_hub
+sentence-transformers
