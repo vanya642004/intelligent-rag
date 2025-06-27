@@ -6,6 +6,7 @@ from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.chains import RetrievalQA
 from langchain_community.llms import HuggingFaceHub
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 # Set Hugging Face token
 os.environ["HUGGINGFACEHUB_API_TOKEN"] = st.secrets["HUGGINGFACEHUB_API_TOKEN"]
@@ -30,11 +31,15 @@ if uploaded_files:
         loader = PyPDFLoader(pdf)
         documents.extend(loader.load())
 
+    # ✅ Split the documents into smaller chunks
+    splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    chunks = splitter.split_documents(documents)
+
     st.info("📡 Creating vector database...")
     embedding_function = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
     vector_db = Chroma.from_documents(
-        documents,
+        chunks,
         embedding_function,
         persist_directory="chroma_db"
     )
