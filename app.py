@@ -6,6 +6,7 @@ from langchain.vectorstores import Chroma
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.chains import RetrievalQA
 from langchain_huggingface import HuggingFaceEndpoint
+from chromadb.config import Settings
 
 # 1. Set Hugging Face token
 os.environ["HUGGINGFACEHUB_API_TOKEN"] = st.secrets["HUGGINGFACEHUB_API_TOKEN"]
@@ -33,7 +34,19 @@ if uploaded_files:
 
     st.info("📡 Creating vector database...")
     embedding_function = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    vector_db = Chroma.from_documents(documents, embedding_function, persist_directory="chroma_db")
+    chroma_settings = Settings(
+    persist_directory="chroma_db",
+    chroma_api_impl="local",
+    anonymized_telemetry=False
+)
+
+# ✅ Now build the vector DB
+vector_db = Chroma.from_documents(
+    documents,
+    embedding_function,
+    persist_directory="chroma_db",
+    client_settings=chroma_settings
+)
 
 
     llm = HuggingFaceEndpoint(
