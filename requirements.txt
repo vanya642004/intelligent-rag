@@ -4,3 +4,5 @@ faiss-cpu
 huggingface-hub
 sentence-transformers
 PyPDF2
+langchain-community
+tqdm
