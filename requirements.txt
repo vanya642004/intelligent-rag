@@ -7,3 +7,5 @@ pypdf
 sentence-transformers
 protobuf==4.23.3
 langchain-community
+numpy==1.23.5
+
