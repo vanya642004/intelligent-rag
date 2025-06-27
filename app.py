@@ -1,59 +1,37 @@
-import os
 import streamlit as st
-from dotenv import load_dotenv
-from PyPDF2 import PdfReader
+from langchain_community.document_loaders import TextLoader
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain_community.llms import HuggingFaceHub
 from langchain.chains import RetrievalQA
-from huggingface_hub import login
+from langchain_community.llms import HuggingFacePipeline
+from transformers import pipeline
 
-# Load environment variables
-load_dotenv()
-huggingface_token = os.getenv("HUGGINGFACEHUB_API_TOKEN")
-login(token=huggingface_token)
+# UI setup
+st.title("📚 Academic Assistant (RAG-powered)")
+query = st.text_input("Enter your academic query")
 
-st.title("📚 Intelligent Academic Search")
+# Load docs & embed
+loader = TextLoader("docs/sample.txt")
+documents = loader.load()
+splitter = CharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+texts = splitter.split_documents(documents)
 
-# File uploader
-uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
+# Embedding
+embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+db = FAISS.from_documents(texts, embeddings)
 
-if uploaded_file is not None:
-    # Extract text from PDF
-    pdf = PdfReader(uploaded_file)
-    raw_text = ""
-    for page in pdf.pages:
-        raw_text += page.extract_text()
+# Hugging Face Pipeline (FLAN-T5)
+qa_pipe = pipeline("text2text-generation", model="google/flan-t5-base", max_length=256)
+llm = HuggingFacePipeline(pipeline=qa_pipe)
 
-    # Chunk text
-    text_splitter = CharacterTextSplitter(
-        separator="\n",
-        chunk_size=1000,
-        chunk_overlap=200,
-        length_function=len
-    )
-    chunks = text_splitter.split_text(raw_text)
+# RAG chain
+retriever = db.as_retriever()
+qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
 
-    # Embeddings
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-
-    # Vector store
-    vector_db = FAISS.from_texts(chunks, embeddings)
-
-    # LLM
-    llm = HuggingFaceHub(
-        repo_id="google/flan-t5-base",
-        model_kwargs={"temperature": 0.5, "max_length": 512}
-    )
-
-    # RetrievalQA
-    retriever = vector_db.as_retriever()
-    qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
-
-    # Query box
-    query = st.text_input("Ask something from the document")
-    if st.button("Search"):
-        with st.spinner("🔍 Searching..."):
-            response = qa_chain.invoke({"query": query})
-            st.write("🧠 Answer:", response["result"])
+# Output
+if query:
+    with st.spinner("Searching..."):
+        result = qa_chain.run(query)
+        st.markdown("### 📖 Answer")
+        st.write(result)
