@@ -8,7 +8,8 @@ from langchain.chains import RetrievalQA
 from langchain_huggingface import HuggingFaceEndpoint
 
 # 1. Set Hugging Face token
-os.environ["HUGGINGFACEHUB_API_TOKEN"] = st.secrets["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"]
+os.environ["HUGGINGFACEHUB_API_TOKEN"] = st.secrets["HUGGINGFACEHUB_API_TOKEN"]
+
 
 st.set_page_config(page_title=" AI Academic Assistant", layout="wide")
 st.title("📖 Intelligent Academic Search with RAG")
