@@ -2,65 +2,60 @@ import os
 import streamlit as st
 import glob
 from langchain_community.document_loaders import PyPDFLoader
-from langchain.text_splitter import CharacterTextSplitter
-from langchain.vectorstores import Chroma
+from langchain_community.vectorstores import Chroma
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.chains import RetrievalQA
-from langchain_community.llms import HuggingFaceHub
+from langchain_huggingface import HuggingFaceEndpoint
+from chromadb.config import Settings
 
-# 🌐 Set Hugging Face token
+# Set Hugging Face API token
 os.environ["HUGGINGFACEHUB_API_TOKEN"] = st.secrets["HUGGINGFACEHUB_API_TOKEN"]
 
-# 🖥️ UI
-st.set_page_config(page_title="AI Academic Assistant", layout="wide")
+# UI setup
+st.set_page_config(page_title="📖 Intelligent Academic Search", layout="wide")
 st.title("📖 Intelligent Academic Search with RAG")
-uploaded_files = st.file_uploader("Upload PDFs", type=["pdf"], accept_multiple_files=True)
+
+uploaded_files = st.file_uploader("Upload your academic PDFs", type=["pdf"], accept_multiple_files=True)
 
 if uploaded_files:
-    # Save PDFs
-    pdf_folder = "uploaded_pdfs"
-    os.makedirs(pdf_folder, exist_ok=True)
+    st.info("Saving and processing uploaded PDFs...")
+    pdf_dir = "pdfs"
+    os.makedirs(pdf_dir, exist_ok=True)
+
     for file in uploaded_files:
-        file_path = os.path.join(pdf_folder, file.name)
-        with open(file_path, "wb") as f:
+        with open(os.path.join(pdf_dir, file.name), "wb") as f:
             f.write(file.getbuffer())
 
-    # 📄 Load & chunk
-    documents = []
-    pdf_files = glob.glob(os.path.join(pdf_folder, "*.pdf"))
-    for pdf in pdf_files:
-        loader = PyPDFLoader(pdf)
-        documents.extend(loader.load())
+    # Load documents
+    docs = []
+    for file in glob.glob(os.path.join(pdf_dir, "*.pdf")):
+        docs.extend(PyPDFLoader(file).load())
 
-    text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-    chunks = text_splitter.split_documents(documents)
+    # Embeddings
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
-    st.info("📡 Creating vector database...")
-    embedding_function = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    # ChromaDB setup
+    chroma_db_dir = "chroma_db"
+    chroma_settings = Settings(anonymized_telemetry=False)
 
     vector_db = Chroma.from_documents(
-        chunks,
-        embedding_function,
-        persist_directory="chroma_db"
+        documents=docs,
+        embedding=embeddings,
+        persist_directory=chroma_db_dir,
+        client_settings=chroma_settings
     )
 
-    # 🤖 LLM
-    llm = HuggingFaceHub(
-        repo_id="google/flan-t5-base",
-        model_kwargs={"temperature": 0.7, "max_length": 512}
-    )
+    # LLM
+    llm = HuggingFaceEndpoint(repo_id="google/flan-t5-base", temperature=0.7)
 
-    qa_chain = RetrievalQA.from_chain_type(
-        llm=llm,
-        retriever=vector_db.as_retriever(),
-        chain_type="stuff"
-    )
+    # Retrieval Chain
+    qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=vector_db.as_retriever())
 
-    st.subheader("💬 Ask any question based on the uploaded PDFs")
-    query = st.text_input("Type your question here...")
+    st.subheader("💬 Ask a question from the uploaded PDFs")
+    query = st.text_input("Type your query here")
 
     if query:
-        with st.spinner("Thinking..."):
-            response = qa_chain.run(query)
-        st.success("✅ Answer:")
-        st.write(response)
+        with st.spinner("Generating response..."):
+            answer = qa_chain.run(query)
+        st.success("Answer:")
+        st.write(answer)
