@@ -1,11 +1,9 @@
 streamlit
 langchain
 langchain-community
-chromadb==0.4.22
-sentence-transformers
-huggingface_hub
+chromadb
+huggingface-hub
 pypdf
-protobuf==4.23.4
-opentelemetry-exporter-otlp==1.22.0
-opentelemetry-sdk==1.22.0
-numpy==1.26.4
+transformers
+torch
+sentence-transformers
