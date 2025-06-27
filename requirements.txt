@@ -3,6 +3,6 @@ langchain
 faiss-cpu
 huggingface-hub
 sentence-transformers
-PyPDF2
+pypdf
 langchain-community
 tqdm
