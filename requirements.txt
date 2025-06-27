@@ -2,7 +2,7 @@ streamlit
 langchain
 langchain-huggingface
 huggingface_hub
-chromadb
+chromadb==0.4.24
 pypdf
 sentence-transformers
 protobuf==4.23.3
