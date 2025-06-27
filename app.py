@@ -2,19 +2,17 @@ import os
 import glob
 import streamlit as st
 from langchain_community.document_loaders import PyPDFLoader
-from langchain.vectorstores import Chroma
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import Chroma
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.chains import RetrievalQA
 from langchain_community.llms import HuggingFaceHub
-from chromadb.config import Settings
 
-# Set Hugging Face API token from Streamlit secrets
+# Set Hugging Face token
 os.environ["HUGGINGFACEHUB_API_TOKEN"] = st.secrets["HUGGINGFACEHUB_API_TOKEN"]
 
 st.set_page_config(page_title="AI Academic Assistant", layout="wide")
 st.title("📖 Intelligent Academic Search with RAG")
 
-# Upload PDFs
 uploaded_files = st.file_uploader("Upload PDFs", type=["pdf"], accept_multiple_files=True)
 
 if uploaded_files:
@@ -33,25 +31,16 @@ if uploaded_files:
         documents.extend(loader.load())
 
     st.info("📡 Creating vector database...")
-    
-    embedding_function = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    
-    chroma_settings = Settings(
-        persist_directory="chroma_db",
-        chroma_api_impl="local",
-        anonymized_telemetry=False
-    )
+    embedding_function = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
     vector_db = Chroma.from_documents(
         documents,
-        embedding=embedding_function,
-        persist_directory="chroma_db",
-        client_settings=chroma_settings
+        embedding_function,
+        persist_directory="chroma_db"
     )
 
-    # Use a valid lightweight model for HuggingFaceHub
     llm = HuggingFaceHub(
-        repo_id="google/flan-t5-small",
+        repo_id="google/flan-t5-base",
         model_kwargs={"temperature": 0.7, "max_length": 512}
     )
 
