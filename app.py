@@ -3,12 +3,11 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import CharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain.chains import RetrievalQA
+from langchain.chains.retrieval_qa.base import RetrievalQA
 from langchain_community.llms import HuggingFacePipeline
 from transformers import pipeline
 import tempfile
 import os
-
 # Streamlit page config
 st.set_page_config(page_title="Free RAG PDF QA", page_icon="📄", layout="wide")
 st.title("📄 Ask Questions to Your PDF Document")
@@ -52,3 +51,4 @@ if uploaded_file:
 
     # Cleanup temp file
     os.remove(tmp_path)
+
